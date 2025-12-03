@@ -1,0 +1,981 @@
+================================================================================
+                    FINDME - TECHNICAL DOCUMENTATION
+           Missing Person Detection & Human Trafficking Prevention Platform
+                    ARM AI Challenge Hackathon Submission
+================================================================================
+
+TABLE OF CONTENTS
+=================
+1. Project Overview
+2. System Architecture
+3. Frontend Technical Details
+4. Backend Technical Details
+5. AI Models & Machine Learning
+6. Face Detection System
+7. Voice Recognition System
+8. Database & Storage (Firebase)
+9. SMS Notification System
+10. Real-time Detection System
+11. ARM Architecture Considerations
+12. Dependencies & Requirements
+13. Configuration & Environment Setup
+14. API Endpoints
+15. Data Flow
+16. Security Features
+17. Performance Optimizations
+18. Deployment Guide
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+Project Name: FindMe
+Purpose: AI-powered platform for missing person detection, human trafficking 
+         prevention, and real-time identification through facial and voice 
+         recognition.
+
+Key Features:
+- Real-time face detection and recognition
+- Voice-based person identification
+- SMS notifications with location data
+- Web-based reporting interface
+- Firebase cloud storage and database
+- Multi-modal AI matching (face + voice)
+- Police station coordination
+
+Technology Stack:
+- Frontend: Next.js 14, React 18, TypeScript, Tailwind CSS
+- Backend: FastAPI, Python 3.x
+- AI/ML: InsightFace, Resemblyzer, ONNX Runtime
+- Database: Firebase Firestore
+- SMS: Sinch API
+- Computer Vision: OpenCV
+
+================================================================================
+2. SYSTEM ARCHITECTURE
+================================================================================
+
+Architecture Type: Full-stack web application with real-time detection system
+
+Components:
+1. Frontend Web Application (Next.js)
+   - User interface for reporting missing persons
+   - Consultation page
+   - Image and audio upload forms
+   - Real-time status updates
+
+2. Backend API Server (FastAPI)
+   - RESTful API endpoints
+   - Image processing service
+   - Audio processing service
+   - Firebase integration
+   - CORS-enabled for frontend communication
+
+3. Real-time Detection System (Python)
+   - Face detection and recognition
+   - Voice detection and matching
+   - Camera/video input processing
+   - SMS notification triggers
+   - Location tracking
+
+4. Cloud Services
+   - Firebase Firestore (database)
+   - Firebase Storage (images/audio)
+   - Sinch SMS API (notifications)
+
+Data Flow:
+User Upload → Backend API → Firebase Storage → Face/Voice Embedding Extraction
+                                                      ↓
+Real-time Detection ← Firebase Firestore ← Embeddings Storage
+
+================================================================================
+3. FRONTEND TECHNICAL DETAILS
+================================================================================
+
+Framework: Next.js 14.2.5 (App Router)
+Language: TypeScript 5.5.4
+UI Framework: React 18.3.1
+
+Key Dependencies:
+- next: 14.2.5
+- react: ^18.3.1
+- react-dom: ^18.3.1
+- react-hook-form: ^7.52.1 (form handling)
+- zod: ^3.23.8 (schema validation)
+- framer-motion: ^11.3.3 (animations)
+- lucide-react: ^0.424.0 (icons)
+- tailwindcss: ^3.4.7 (styling)
+- @radix-ui/* (UI components)
+
+Project Structure:
+frontend/
+├── app/
+│   ├── page.tsx              # Home page with features
+│   ├── upload/
+│   │   └── page.tsx          # Missing person upload form
+│   ├── consultation/
+│   │   └── page.tsx          # Consultation page
+│   ├── layout.tsx            # Root layout
+│   └── globals.css           # Global styles
+├── components/
+│   ├── Navbar.tsx            # Navigation component
+│   └── ui/                   # Reusable UI components
+│       ├── button.tsx
+│       ├── card.tsx
+│       ├── input.tsx
+│       ├── label.tsx
+│       ├── textarea.tsx
+│       ├── toast.tsx
+│       └── use-toast.ts
+└── lib/
+    ├── api.ts                # API endpoint configuration
+    └── utils.ts              # Utility functions
+
+Key Features:
+- Server-side rendering (SSR) with Next.js
+- Client-side form validation with Zod
+- Responsive design with Tailwind CSS
+- Smooth animations with Framer Motion
+- Toast notifications for user feedback
+- Image preview and management
+- Audio upload and preview
+- Multi-image upload (max 10 images)
+- Form validation and error handling
+
+Form Fields (Upload Page):
+1. Full Name (required)
+2. Age (required, numeric)
+3. City Last Seen (required)
+4. Date Last Seen (required, date picker)
+5. Contact Phone Number (required, min 10 chars)
+6. Nearby Police Station Name & Address (required)
+7. Additional Description (optional)
+8. Images (required, max 10, 5MB each)
+9. Audio (optional, 10MB max)
+
+API Integration:
+- Base URL: http://localhost:8000 (configurable via NEXT_PUBLIC_API_URL)
+- Endpoints:
+  - POST /api/upload - Submit missing person data
+  - POST /api/counselor - Consultation requests
+
+Image Configuration:
+- External images from Unsplash allowed
+- Next.js Image optimization enabled
+- Domains: images.unsplash.com
+
+================================================================================
+4. BACKEND TECHNICAL DETAILS
+================================================================================
+
+Framework: FastAPI 0.115.0
+Language: Python 3.x
+Server: Uvicorn (ASGI server)
+
+Key Dependencies:
+- fastapi: 0.115.0
+- uvicorn[standard]: 0.30.6
+- python-multipart: 0.0.9 (file uploads)
+- firebase-admin: 6.5.0
+- insightface: 0.7.3
+- opencv-python: 4.10.0.84
+- numpy: 1.26.4
+- onnxruntime: 1.19.1
+- resemblyzer: 0.1.1
+- scipy: 1.11.4
+- soundfile: 0.12.1
+- python-dotenv: 1.0.1
+- sinch-python-sdk: 2.0.0
+- requests: 2.31.0
+
+Project Structure:
+backend/
+├── main.py                   # FastAPI application
+├── image_processor.py        # Face embedding extraction
+├── audio_processor.py        # Voice embedding extraction
+├── requirements.txt          # Python dependencies
+├── serviceAccountKey.json    # Firebase credentials (optional)
+└── .env                      # Environment variables (optional)
+
+API Endpoints:
+
+1. GET /
+   - Health check endpoint
+   - Returns: {"message": "FindMe Backend API is running"}
+
+2. POST /api/upload
+   - Upload missing person information
+   - Accepts: multipart/form-data
+   - Parameters:
+     * fullName: str (required)
+     * age: str (required)
+     * cityLastSeen: str (required)
+     * dateLastSeen: str (required)
+     * contactPhone: str (required)
+     * nearbyPoliceStation: str (required)
+     * additionalDescription: str (optional)
+     * images: List[UploadFile] (required, at least 1)
+     * audio: UploadFile (optional)
+   - Returns: JSON with processing results
+   - Processing:
+     * Extracts face embeddings from images
+     * Extracts voice embeddings from audio (if provided)
+     * Stores data in Firebase Firestore
+     * Returns count of processed images and detected faces
+
+CORS Configuration:
+- Allowed origins: localhost:3000, localhost:3001, 127.0.0.1:3000, 127.0.0.1:3001
+- Credentials: enabled
+- Methods: all
+- Headers: all
+
+Firebase Integration:
+- Supports two credential methods:
+  1. serviceAccountKey.json file
+  2. FIREBASE_SERVICE_ACCOUNT_KEY environment variable
+- Automatic initialization on startup
+- Firestore database for data storage
+
+================================================================================
+5. AI MODELS & MACHINE LEARNING
+================================================================================
+
+Face Recognition Model:
+- Library: InsightFace
+- Model: buffalo_l (Buffalo L model)
+- Framework: ONNX Runtime
+- Embedding Dimension: 512 (normalized)
+- Model Type: Deep learning neural network
+- Architecture: ArcFace-based face recognition
+
+Model Details:
+- Name: buffalo_l
+- Provider: InsightFace
+- Input: RGB image with detected face
+- Output: 512-dimensional normalized embedding vector
+- Similarity Metric: Cosine similarity
+- Threshold: 0.30-0.35 (configurable)
+
+Voice Recognition Model:
+- Library: Resemblyzer
+- Model: Pre-trained voice encoder
+- Embedding Dimension: 256
+- Sample Rate: 16000 Hz
+- Model Type: Deep learning neural network
+- Architecture: Speaker verification network
+
+Model Details:
+- Input: Audio waveform (WAV, MP3, M4A, FLAC)
+- Preprocessing: Automatic format conversion, resampling
+- Output: 256-dimensional embedding vector
+- Similarity Metric: Cosine similarity
+- Threshold: 0.3 (configurable)
+
+ONNX Runtime:
+- Version: 1.19.1
+- CPU Provider: CPUExecutionProvider
+- GPU Provider: CUDAExecutionProvider (optional)
+- ARM Support: Yes (CPU provider works on ARM)
+- Optimization: Model quantization and optimization
+
+Model Loading:
+- Face model: Loaded on first use (lazy loading)
+- Voice model: Loaded on first use (lazy loading)
+- Memory: Models loaded into RAM
+- Initialization: Automatic on module import
+
+================================================================================
+6. FACE DETECTION SYSTEM
+================================================================================
+
+Implementation: face_detector.py (standalone detection system)
+
+Key Components:
+1. FirebaseFaceDetector Class
+   - Main detection and recognition system
+   - Real-time video processing
+   - Multi-face detection support
+   - Continuous tracking
+
+2. Face Detection Pipeline:
+   Input (Camera/Video) → Frame Processing → Face Detection → 
+   Embedding Extraction → Similarity Matching → Result Display
+
+Configuration Parameters:
+- similarity_threshold: 0.30 (minimum match confidence)
+- smoothing_frames: 5 (temporal smoothing)
+- detection_size: 320 (detection model input size)
+- process_resolution: 720 (processing resolution)
+- frame_skip: 1 (process every other frame)
+- use_gpu: False (CPU by default, GPU optional)
+
+Detection Process:
+1. Frame Capture: Read frame from camera/video
+2. Resize: Resize to process_resolution (maintains aspect ratio)
+3. Face Detection: InsightFace detects all faces in frame
+4. Embedding Extraction: Extract 512-dim embedding for each face
+5. Similarity Matching: Compare with reference embeddings (vectorized)
+6. Temporal Smoothing: Average similarity over last N frames
+7. Match Decision: If similarity > threshold, mark as match
+8. Display: Draw bounding boxes, labels, and info
+
+Performance Optimizations:
+- Frame skipping (process every Nth frame)
+- Resolution reduction for processing
+- Caching of detection results
+- Vectorized similarity computation (NumPy)
+- Local embedding storage (no Firebase queries during detection)
+
+Multi-Face Support:
+- Detects all faces in frame simultaneously
+- Tracks each face independently
+- Shows individual similarity scores
+- Handles multiple missing persons in same frame
+
+Detection Tracking:
+- Tracks continuous detection duration
+- Saves images after 10 seconds of detection
+- Maintains detection timers per person
+- Prevents duplicate saves
+
+================================================================================
+7. VOICE RECOGNITION SYSTEM
+================================================================================
+
+Implementation: Integrated in face_detector.py
+
+Key Components:
+1. Voice Encoder: Resemblyzer VoiceEncoder
+2. Audio Processing: Real-time audio capture and processing
+3. Multi-Speaker Support: Detects multiple speakers simultaneously
+
+Configuration Parameters:
+- voice_similarity_threshold: 0.3 (minimum match confidence)
+- voice_chunk_duration: 1.0 seconds (audio chunk size)
+- sample_rate: 16000 Hz
+- enable_voice: True (can be disabled)
+
+Voice Detection Process:
+1. Audio Capture: Record audio chunk (1 second)
+2. Preprocessing: Convert to WAV, resample to 16kHz
+3. Embedding Extraction: Extract 256-dim voice embedding
+4. Similarity Matching: Compare with all reference voice embeddings
+5. Multi-Match Detection: Find all matches above threshold
+6. Active Speaker Tracking: Track currently speaking persons
+7. History Management: Maintain detection history with timeouts
+
+Real-time Processing:
+- Separate thread for audio processing
+- Continuous loop while listening enabled
+- Non-blocking (doesn't affect video processing)
+- Automatic cleanup of temporary files
+
+Speaker Tracking:
+- Active Speakers: Currently detected (2-second timeout)
+- History: Recent detections (5-second timeout)
+- Similarity Smoothing: Exponential moving average
+- Multiple Speaker Support: Shows up to 5 speakers simultaneously
+
+Audio Format Support:
+- WAV, MP3, M4A, FLAC
+- Automatic format conversion
+- Sample rate normalization to 16kHz
+
+================================================================================
+8. DATABASE & STORAGE (FIREBASE)
+================================================================================
+
+Service: Firebase Firestore (NoSQL document database)
+
+Database Structure:
+Collection: "upload"
+Documents: One per missing person report
+
+Document Schema:
+{
+  "fullName": string,
+  "age": integer,
+  "cityLastSeen": string,
+  "dateLastSeen": string,
+  "contactPhone": string,
+  "nearbyPoliceStation": string,
+  "additionalDescription": string,
+  "images": [base64_encoded_strings],
+  "imageMetadata": [
+    {
+      "index": integer,
+      "filename": string,
+      "has_face": boolean,
+      "embedding": [float_array] or null
+    }
+  ],
+  "audioMetadata": {
+    "filename": string,
+    "has_voice": boolean,
+    "embedding": [float_array] or null
+  } or null,
+  "createdAt": timestamp,
+  "updatedAt": timestamp
+}
+
+Data Storage Strategy:
+1. Images: Base64 encoded, stored in document
+2. Embeddings: Stored as arrays in imageMetadata
+3. Voice Embeddings: Stored in audioMetadata
+4. Metadata: Full person information stored with embeddings
+
+Data Loading:
+- On startup: Downloads all embeddings from Firebase
+- Local Storage: Stores embeddings in NumPy arrays
+- Matching: Uses local embeddings (no queries during detection)
+- Reload: Can reload embeddings on demand (keyboard: 'r')
+
+Firebase Authentication:
+- Service Account Key authentication
+- Supports JSON file or environment variable
+- Automatic credential detection
+
+Storage Locations:
+- serviceAccountKey.json (backend directory)
+- FIREBASE_SERVICE_ACCOUNT_KEY (environment variable)
+
+================================================================================
+9. SMS NOTIFICATION SYSTEM
+================================================================================
+
+Service: Sinch SMS API
+Integration: sinch-python-sdk 2.0.0
+
+Configuration:
+- Credentials can be set via:
+  1. sinch_config.txt file
+  2. Environment variables (.env)
+  3. Direct parameters
+
+Required Credentials:
+- SINCH_KEY_ID
+- SINCH_KEY_SECRET
+- SINCH_PROJECT_ID
+- SINCH_FROM_NUMBER
+
+SMS Trigger Conditions:
+- Person detected for first time
+- 1-hour cooldown per person (prevents spam)
+- Only sends if contact number exists in Firebase data
+
+SMS Message Format:
+{person_name}
+{age}
+{latitude},{longitude}
+
+Example:
+John Doe
+25
+40.712776,-74.005974
+
+Location Tracking:
+- Uses IP-based geolocation (ip-api.com)
+- Falls back to "Location unavailable" if geolocation fails
+- Provides latitude, longitude, address, city, country
+
+SMS Features:
+- Automatic phone number formatting
+- International number support (+ prefix)
+- Error handling and logging
+- Cooldown management per person
+
+================================================================================
+10. REAL-TIME DETECTION SYSTEM
+================================================================================
+
+Main File: face_detector.py
+
+System Architecture:
+- Standalone Python application
+- Real-time video processing
+- Multi-threaded (video + audio)
+- OpenCV for video capture and display
+
+Video Input:
+- Webcam (default: device 0)
+- Video file (path supported)
+- Resolution: Configurable (default 1280x720)
+- FPS: Target 30 FPS
+
+Processing Pipeline:
+1. Frame Capture (OpenCV)
+2. Frame Resizing (for performance)
+3. Face Detection (InsightFace)
+4. Embedding Extraction (per face)
+5. Similarity Matching (vectorized NumPy)
+6. Temporal Smoothing (deque-based)
+7. Result Display (OpenCV)
+8. SMS Trigger (if conditions met)
+9. Image Saving (after 10 seconds)
+
+Performance Metrics:
+- FPS Tracking: 30-frame rolling average
+- Frame Skip: Process every other frame
+- Resolution: 720p processing (configurable)
+- Detection Size: 320x320 (model input)
+
+Display Features:
+- Bounding boxes (green for match, red for unknown)
+- Name labels with similarity scores
+- Detection timer
+- Person information overlay
+- FPS counter
+- Face count
+- Voice matches display
+
+Keyboard Controls:
+- 'q': Quit application
+- 'r': Reload embeddings from Firebase
+- 'v': Toggle voice detection
+
+Output:
+- Detected persons saved to: detected_persons/
+- Files saved:
+  * {name}_{timestamp}_{key}.jpg (cropped person)
+  * {name}_{timestamp}_FULL.jpg (full frame with annotation)
+  * {name}_{timestamp}_INFO.txt (person details)
+
+================================================================================
+11. ARM ARCHITECTURE CONSIDERATIONS
+================================================================================
+
+ARM Compatibility:
+- Python: Fully compatible (Python 3.x runs on ARM)
+- NumPy: ARM-optimized builds available
+- OpenCV: ARM support via pip (opencv-python)
+- ONNX Runtime: CPU provider works on ARM
+- InsightFace: Compatible (uses ONNX Runtime)
+
+Model Execution on ARM:
+- Face Model: Runs on CPU (ONNX Runtime CPU provider)
+- Voice Model: Runs on CPU (Resemblyzer)
+- No GPU required (CPU execution)
+- Performance: Slower than x86, but functional
+
+Optimizations for ARM:
+1. Lower Resolution Processing:
+   - process_resolution: 480-720 (reduced from 1080)
+   - detection_size: 320 (smaller model input)
+
+2. Frame Skipping:
+   - frame_skip: 1 (process every other frame)
+   - Reduces computational load by 50%
+
+3. Model Quantization:
+   - ONNX models can be quantized for ARM
+   - Reduces memory and improves speed
+
+4. Memory Management:
+   - Local embedding storage (reduces queries)
+   - Efficient NumPy operations
+   - Frame caching
+
+ARM-Specific Dependencies:
+- numpy: Use ARM-optimized version if available
+- opencv-python: Standard pip version works
+- onnxruntime: CPU-only version (no GPU on ARM typically)
+
+Performance Expectations on ARM:
+- Face Detection: 5-15 FPS (depending on ARM core)
+- Voice Processing: Real-time (separate thread)
+- Overall: Functional but slower than x86/GPU
+
+Deployment on ARM:
+- Raspberry Pi: Compatible
+- ARM-based servers: Compatible
+- Edge devices: Compatible with optimizations
+- Docker: ARM images available
+
+================================================================================
+12. DEPENDENCIES & REQUIREMENTS
+================================================================================
+
+Frontend Dependencies (package.json):
+{
+  "next": "14.2.5",
+  "react": "^18.3.1",
+  "react-dom": "^18.3.1",
+  "react-hook-form": "^7.52.1",
+  "zod": "^3.23.8",
+  "@hookform/resolvers": "^3.3.4",
+  "framer-motion": "^11.3.3",
+  "lucide-react": "^0.424.0",
+  "class-variance-authority": "^0.7.0",
+  "clsx": "^2.1.1",
+  "tailwind-merge": "^2.4.0",
+  "@radix-ui/react-slot": "^1.0.2",
+  "@radix-ui/react-toast": "^1.1.5",
+  "@radix-ui/react-label": "^2.0.2"
+}
+
+Backend Dependencies (requirements.txt):
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+firebase-admin==6.5.0
+insightface==0.7.3
+opencv-python==4.10.0.84
+numpy==1.26.4
+onnxruntime==1.19.1
+python-dotenv==1.0.1
+onnxruntime-gpu==1.19.1  # Optional, for GPU support
+resemblyzer==0.1.1
+scipy==1.11.4
+soundfile==0.12.1
+sinch-python-sdk==2.0.0
+requests==2.31.0
+
+System Requirements:
+- Python: 3.8 or higher
+- Node.js: 18.x or higher
+- npm: 9.x or higher
+- Operating System: Windows, Linux, macOS, ARM Linux
+- RAM: Minimum 4GB (8GB recommended)
+- Storage: 2GB for models and dependencies
+- Camera: USB webcam or video file (for detection system)
+
+Optional Requirements:
+- CUDA-capable GPU (for faster face detection)
+- CUDA Toolkit (for GPU support)
+- Internet connection (for Firebase, SMS, geolocation)
+
+================================================================================
+13. CONFIGURATION & ENVIRONMENT SETUP
+================================================================================
+
+Environment Variables:
+
+Backend (.env or environment):
+- FIREBASE_SERVICE_ACCOUNT_KEY: Firebase credentials (JSON string)
+- SINCH_KEY_ID: Sinch SMS API key ID
+- SINCH_KEY_SECRET: Sinch SMS API secret
+- SINCH_PROJECT_ID: Sinch project ID
+- SINCH_FROM_NUMBER: Sinch phone number
+
+Frontend (.env.local):
+- NEXT_PUBLIC_API_URL: Backend API URL (default: http://localhost:8000)
+
+Configuration Files:
+
+1. sinch_config.txt (optional):
+   Line 1: SINCH_KEY_ID
+   Line 2: SINCH_KEY_SECRET
+   Line 3: SINCH_PROJECT_ID
+   Line 4: SINCH_FROM_NUMBER
+
+2. backend/serviceAccountKey.json (optional):
+   Firebase service account credentials
+
+3. .env (backend or root):
+   Environment variables for configuration
+
+Firebase Setup:
+1. Create Firebase project
+2. Enable Firestore Database
+3. Generate service account key
+4. Place credentials in serviceAccountKey.json or .env
+
+Sinch SMS Setup:
+1. Create Sinch account
+2. Get API credentials
+3. Configure phone number
+4. Set credentials in .env or sinch_config.txt
+
+================================================================================
+14. API ENDPOINTS
+================================================================================
+
+Backend API (FastAPI):
+
+Base URL: http://localhost:8000
+
+1. GET /
+   Description: Health check
+   Response: {"message": "FindMe Backend API is running"}
+
+2. POST /api/upload
+   Description: Upload missing person information
+   Content-Type: multipart/form-data
+   Request Body:
+     - fullName: string (required)
+     - age: string (required)
+     - cityLastSeen: string (required)
+     - dateLastSeen: string (required)
+     - contactPhone: string (required)
+     - nearbyPoliceStation: string (required)
+     - additionalDescription: string (optional)
+     - images: File[] (required, at least 1, max 10)
+     - audio: File (optional)
+   
+   Response:
+   {
+     "message": "Data uploaded successfully",
+     "docId": "document_id",
+     "imagesProcessed": integer,
+     "facesDetected": integer,
+     "audioProcessed": boolean,
+     "voiceDetected": boolean
+   }
+
+   Error Responses:
+   - 400: Bad request (missing images, invalid data)
+   - 500: Server error
+
+3. POST /api/counselor
+   Description: Consultation request (if implemented)
+   Content-Type: application/json
+
+CORS:
+- Enabled for localhost:3000, localhost:3001
+- Credentials: enabled
+- Methods: all
+- Headers: all
+
+================================================================================
+15. DATA FLOW
+================================================================================
+
+Upload Flow:
+1. User fills form on frontend
+2. Frontend validates data (Zod schema)
+3. Form data + images + audio sent to backend API
+4. Backend processes images (face detection, embedding extraction)
+5. Backend processes audio (voice embedding extraction)
+6. Data stored in Firebase Firestore
+7. Response sent to frontend
+8. Success message displayed
+
+Detection Flow:
+1. face_detector.py starts
+2. Loads embeddings from Firebase (one-time)
+3. Initializes face and voice models
+4. Starts video capture
+5. For each frame:
+   a. Detect faces
+   b. Extract embeddings
+   c. Compare with reference embeddings
+   d. Display results
+6. For audio (separate thread):
+   a. Record audio chunk
+   b. Extract voice embedding
+   c. Compare with reference voice embeddings
+   d. Update active speakers
+7. On person detection:
+   a. Track detection duration
+   b. Save images after 10 seconds
+   c. Send SMS (if first detection and cooldown passed)
+   d. Display person information
+
+SMS Flow:
+1. Person detected (first time)
+2. Check cooldown (1 hour since last SMS)
+3. Get location (IP geolocation)
+4. Format message (name, age, coordinates)
+5. Send SMS via Sinch API
+6. Update last SMS time
+7. Log result
+
+================================================================================
+16. SECURITY FEATURES
+================================================================================
+
+Data Security:
+- Firebase authentication (service account)
+- Encrypted data transmission (HTTPS recommended)
+- Secure credential storage (environment variables)
+- Input validation (Zod schemas)
+- File size limits (5MB images, 10MB audio)
+
+Privacy:
+- Person data stored securely in Firebase
+- Images base64 encoded in database
+- Embeddings stored separately from images
+- SMS only sent to registered contact numbers
+- Location data only sent when person detected
+
+Access Control:
+- Firebase Firestore security rules (configured separately)
+- CORS restrictions (specific origins)
+- API endpoint protection (can add authentication)
+
+Best Practices:
+- Credentials in environment variables (not in code)
+- Service account keys in .gitignore
+- Input sanitization
+- Error handling without exposing internals
+
+================================================================================
+17. PERFORMANCE OPTIMIZATIONS
+================================================================================
+
+Frontend Optimizations:
+- Next.js Image optimization
+- Code splitting (automatic)
+- Server-side rendering
+- Client-side caching
+- Lazy loading of components
+
+Backend Optimizations:
+- Lazy model loading (load on first use)
+- Efficient NumPy operations
+- Vectorized similarity computation
+- Base64 encoding for storage
+- Async file processing
+
+Detection System Optimizations:
+- Frame skipping (process every Nth frame)
+- Resolution reduction (720p instead of 1080p)
+- Detection size reduction (320x320)
+- Local embedding storage (no database queries)
+- Caching of detection results
+- Temporal smoothing (reduces flickering)
+- Multi-threaded audio processing
+
+Memory Management:
+- Efficient NumPy array operations
+- Automatic cleanup of temporary files
+- Limited history sizes (deque with maxlen)
+- Frame caching with limits
+
+ARM-Specific Optimizations:
+- Lower processing resolution
+- Increased frame skipping
+- CPU-only execution (no GPU overhead)
+- Model quantization (if available)
+
+================================================================================
+18. DEPLOYMENT GUIDE
+================================================================================
+
+Frontend Deployment:
+
+1. Build the application:
+   cd frontend
+   npm install
+   npm run build
+
+2. Start production server:
+   npm start
+
+3. Or deploy to Vercel/Netlify:
+   - Connect GitHub repository
+   - Configure build settings
+   - Set environment variables
+
+Backend Deployment:
+
+1. Install dependencies:
+   cd backend
+   pip install -r requirements.txt
+
+2. Set up environment:
+   - Create .env file
+   - Add Firebase credentials
+   - Add Sinch credentials (if using SMS)
+
+3. Run server:
+   python main.py
+   # Or with uvicorn:
+   uvicorn main:app --host 0.0.0.0 --port 8000
+
+4. Or use Docker:
+   - Create Dockerfile
+   - Build image
+   - Run container
+
+Detection System Deployment:
+
+1. Install dependencies:
+   pip install -r backend/requirements.txt
+
+2. Configure:
+   - Set up Firebase credentials
+   - Configure Sinch SMS (optional)
+   - Adjust detection parameters
+
+3. Run:
+   python face_detector.py
+
+ARM Deployment:
+
+1. Install Python 3.8+ on ARM device
+2. Install system dependencies:
+   - OpenCV dependencies
+   - Audio libraries
+3. Install Python packages:
+   pip install -r backend/requirements.txt
+4. Configure for ARM:
+   - Set use_gpu=False
+   - Reduce process_resolution
+   - Increase frame_skip
+5. Run detection system
+
+Docker Deployment (Optional):
+
+1. Create Dockerfile for backend
+2. Create docker-compose.yml
+3. Build and run:
+   docker-compose up -d
+
+Environment Variables for Production:
+- Set all credentials in environment
+- Use secure secret management
+- Enable HTTPS
+- Configure firewall rules
+
+================================================================================
+ADDITIONAL TECHNICAL NOTES
+================================================================================
+
+Model Files:
+- InsightFace models downloaded automatically on first use
+- Resemblyzer models included in package
+- ONNX models cached locally after download
+
+Error Handling:
+- Graceful degradation (continues on errors)
+- Error logging to console
+- User-friendly error messages
+- Fallback mechanisms
+
+Logging:
+- Console output for debugging
+- Progress indicators
+- Status messages
+- Error details
+
+Testing:
+- Manual testing recommended
+- Test with various image qualities
+- Test with different audio formats
+- Test SMS functionality
+- Test Firebase connectivity
+
+Known Limitations:
+- Face detection requires clear face visibility
+- Voice detection requires clear audio
+- SMS requires valid phone numbers
+- Location accuracy depends on IP geolocation
+- Performance varies by hardware
+
+Future Enhancements:
+- GPU acceleration support
+- Batch processing
+- Cloud deployment
+- Mobile app integration
+- Advanced analytics
+- Multi-language support
+
+================================================================================
+END OF TECHNICAL DOCUMENTATION
+================================================================================
+
+Generated for: ARM AI Challenge Hackathon Submission
+Project: FindMe - Missing Person Detection Platform
+Date: 2024
+

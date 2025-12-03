@@ -1,0 +1,17 @@
+# Sinch SMS Configuration
+# Copy this file to sinch_config.txt and fill in your credentials
+# One value per line (no quotes, no spaces)
+# 
+# Line 1: SINCH_KEY_ID
+# Line 2: SINCH_KEY_SECRET  
+# Line 3: SINCH_PROJECT_ID
+# Line 4: SINCH_FROM_NUMBER (your Sinch phone number)
+
+YOUR_key_id_here
+YOUR_key_secret_here
+YOUR_project_id_here
+YOUR_Sinch_phone_number_here
+
+
+
+
